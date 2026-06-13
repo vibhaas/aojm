@@ -691,12 +691,16 @@ cmd_update() {
     if sudo cp "$tmp_file" "$0"; then
       sudo chmod +x "$0"
       log "Successfully updated!"
+      rm -f "$tmp_file"
+      exit 0
     else
       log "Failed to update due to permissions. Please run: sudo $APP update"
     fi
   else
     chmod +x "$0"
     log "Successfully updated!"
+    rm -f "$tmp_file"
+    exit 0
   fi
   
   rm -f "$tmp_file"
