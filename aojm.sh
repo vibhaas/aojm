@@ -669,7 +669,7 @@ cmd_update() {
   local tmp_file
   tmp_file="$(mktemp)"
   
-  if ! curl -s --connect-timeout 5 "https://raw.githubusercontent.com/vibhaas/aojm/main/ajom.sh" -o "$tmp_file"; then
+  if ! curl -s --connect-timeout 5 "https://raw.githubusercontent.com/vibhaas/aojm/main/aojm.sh" -o "$tmp_file"; then
     log "Network offline or repository unreachable. Skipping update."
     rm -f "$tmp_file"
     return 0
