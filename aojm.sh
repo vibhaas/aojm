@@ -305,7 +305,6 @@ EOF
 
     if [[ -n "$cam" ]]; then
       ffmpeg_cmd+=(-thread_queue_size 512 -f v4l2 -framerate "$CAMERA_FPS" -i "$cam")
-      ffmpeg_cmd+=(-vf "scale=640:-1")
     else
       # Dummy video input if no webcam
       ffmpeg_cmd+=(-f lavfi -i color=c=black:s=${CAMERA_WIDTH}x240:r=$CAMERA_FPS)
@@ -323,6 +322,10 @@ EOF
       ffmpeg_cmd+=(-c:v h264_nvenc -preset p4 -cq 28)
     else
       ffmpeg_cmd+=(-c:v libx264 -preset veryfast -crf 28)
+    fi
+
+    if [[ -n "$cam" ]]; then
+      ffmpeg_cmd+=(-vf "scale=640:-1")
     fi
 
     ffmpeg_cmd+=(-pix_fmt yuv420p "$cam_file")
@@ -455,18 +458,45 @@ cmd_stop() {
   session_dir="$(active_session_dir || true)"
   [[ -n "$session_dir" && -d "$session_dir" ]] || die "No active session."
 
-  read -r -p "Are you sure you want to stop the recording? [y/N] " ans
-  [[ "$ans" =~ ^[Yy]$ ]] || { log "Stop aborted."; return 0; }
-
+  log "Stopping backend processes. Please wait while files are finalized..."
   stop_backend "$session_dir"
+
+  # Wait for backend processes to cleanly exit and flush files
+  for b_file in "$session_dir/backend.pid" "$session_dir/backend_ff.pid"; do
+    if [[ -f "$b_file" ]]; then
+      local b_pid
+      b_pid="$(cat "$b_file")"
+      while pid_alive "$b_pid"; do
+        sleep 0.5
+      done
+    fi
+  done
 
   if [[ -f "$session_dir/logger.pid" ]]; then
     kill -INT "$(cat "$session_dir/logger.pid")" >/dev/null 2>&1 || true
   fi
 
+  local real_path_file="$session_dir/screen.real_path"
+  if [[ -f "$real_path_file" ]]; then
+    local orig_file
+    orig_file="$(cat "$real_path_file")"
+    if [[ -f "$orig_file" ]]; then
+      log "Downscaling Wayland screen recording to ${OUTPUT_WIDTH}x${OUTPUT_HEIGHT}... (this might take a minute depending on length)"
+      local downscaled_file="$session_dir/screen_downscaled.mp4"
+      
+      if ffmpeg -y -i "$orig_file" -vf "scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}" -c:v libx264 -preset veryfast -crf 28 "$downscaled_file" >/dev/null 2>&1; then
+        mv "$downscaled_file" "$orig_file"
+        log "Downscaling complete."
+      else
+        log "WARNING: Downscaling failed. Original file retained."
+        rm -f "$downscaled_file"
+      fi
+    fi
+  fi
+
   set_meta "$session_dir/meta.env" STOPPED_AT "$(date -Is)"
   rm -f "$CURRENT_SESSION_FILE"
-  log "Recording stopped."
+  log "Recording successfully stopped."
 }
 
 cmd_status() {
@@ -555,6 +585,11 @@ cmd_preview() {
   fi
 
   log "Previewing video stream. Close the media player to return to the terminal."
+  
+  if [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
+    log "Notice: Screen recordings natively captured on Wayland cannot be fully previewed while the session is still actively recording."
+  fi
+
   if have mpv; then
       mpv "$file" >/dev/null 2>&1 &
   elif have vlc; then
