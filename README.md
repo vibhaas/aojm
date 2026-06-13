@@ -1,31 +1,37 @@
-# aojm
+# aojm (Anya's Online Judge Mini)
 
-Stands for "Anya's Online Judge Mini". A quick and easy to use CLI tool to record your desktop and acitvity logs for competitive programming contests. Only supports linux systems as of June 2026.
+A lightweight CLI tool to record desktop, webcam, and activity logs for competitive programming contests on Linux.
 
-After downloading the .sh script, install with:
+## Installation
 
 ```bash
 chmod +x aojm.sh
 sudo install -m 755 aojm.sh /usr/local/bin/aojm
 ```
 
-## Usage
+## Commands
 
-- `aojm init`: Initialize configuration, detect hardware, and get guidance for setting up Google Drive uploads.
-- `aojm start <contest_name_or_url>`: Start recording (screen, webcam, audio, window logs).
-- `aojm stop`: Stop the current recording session.
-- `aojm status`: View the status and combined sizes of active and recent sessions.
-- `aojm preview`: Preview the current or latest video recording (automatically manages Wayland streams).
-- `aojm upload [recent|all]`: Safely upload completed recordings to Google Drive (verifies available space first).
-- `aojm clean [keep_count] [--yes] | --empty-trash`: Move old uploaded sessions to trash or empty the trash.
-- `aojm force-delete [keep_count] [--yes]`: Like clean, but actively deletes un-uploaded sessions as well.
-- `aojm settings [list | set <key> <value>]`: View or modify configuration settings.
-- `aojm show`: Open the local recordings folder (`~/.aojm/sessions`) in your file manager.
-- `aojm update`: Check GitHub for updates and safely patch the local installation.
-- `aojm help`: Display the help menu with detailed command descriptions.
+- `aojm init`: Initialize configuration and detect hardware (webcam/audio).
+- `aojm start <name_or_url>`: Start recording in the background.
+- `aojm stop`: Finalize and safely stop the current recording session.
+- `aojm status`: Display a table of all recent and active sessions.
+- `aojm preview`: Preview the current or latest video recording.
+- `aojm upload [recent|all]`: Upload recordings to Google Drive and generate a public sharing link.
+- `aojm clean [count]`: Safely trash old, successfully uploaded sessions.
+- `aojm force-delete [count]`: Trash un-uploaded sessions, bypassing safety locks.
+- `aojm settings`: View or modify configuration variables.
+- `aojm show`: Open the local recordings folder (`~/.aojm/sessions`) in your GUI file manager.
+- `aojm update`: Pull the latest script updates directly from GitHub.
 
-## Features
+## Under the Hood (Features)
 
-- **X11 & Wayland Support**: Automatically adapts to your desktop environment. On Wayland, it natively splits screen and webcam recording and prompts you to share your screen securely.
-- **Smart Cloud Uploads**: Seamlessly uploads your sessions to Google Drive via `rclone`, complete with pre-upload storage space checks to ensure successful syncing.
-- **Auto-Updates**: Built-in update mechanism to easily fetch and apply the latest script version directly from GitHub.
+- **Native Wayland & X11 Capture**: 
+  - On **Wayland**, `aojm` bypasses restrictive XDG portal bugs by natively bridging with the `org.gnome.Shell.Screencast` DBus interface. It securely captures the screen to a raw MP4 and automatically scales it down post-recording using `ffmpeg` to save disk space.
+  - On **X11**, it leverages `x11grab` for hardware-accelerated capture and supports live active-window-title logging via `xdotool`.
+- **Smart Rclone Cloud Sync**:
+  - Validates remote Google Drive storage space before attempting an upload.
+  - Automatically invokes `rclone link` post-upload to generate and print a public sharing URL directly in the terminal.
+- **Fail-Safe Data Retention**:
+  - The `clean` command strictly prevents the deletion of any recording that has not yet been safely verified as `UPLOADED=1`. Old data directories are seamlessly migrated during updates.
+- **Self-Patching Updates**: 
+  - The `update` command queries the raw GitHub repository (bypassing CDN edge-caches with randomized timestamp strings) and safely patches the binary in `/usr/local/bin`. It explicitly blocks updates if a recording is currently active to prevent file corruption.
