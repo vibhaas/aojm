@@ -700,16 +700,19 @@ cmd_update() {
 
 usage() {
   cat <<EOF
-usage:
-  $APP init
-  $APP start <contest_url>
-  $APP stop
-  $APP status
-  $APP preview
-  $APP upload [recent|all]
-  $APP clean [keep_count] [--yes] | --empty-trash
-  $APP settings [list | set <key> <value>]
-  $APP update
+Usage: $APP <command> [options]
+
+Commands:
+  init       Initialize configuration, detect hardware, and setup cloud storage.
+  start      <contest_url> Open the URL and start recording (screen, webcam, audio).
+  stop       Stop the current active recording session.
+  status     View the status and size of active and recent sessions.
+  preview    Preview the current or latest video recording stream.
+  upload     [recent|all] Safely upload completed recordings to Google Drive/cloud.
+  clean      [keep_count] [--yes] | --empty-trash Move old sessions to trash or permanently empty.
+  settings   [list | set <key> <value>] View or modify configuration settings.
+  update     Check GitHub for updates and automatically patch the local installation.
+  help       Show this help message.
 EOF
 }
 
