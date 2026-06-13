@@ -510,63 +510,77 @@ cmd_stop() {
 
 cmd_status() {
   load_config
-  local session_dir active meta backend started_at stopped_at recording_file size uploaded elapsed short_start short_stop
-
-  session_dir="$(active_session_dir || true)"
-  if [[ -z "$session_dir" || ! -d "$session_dir" ]]; then
-    session_dir="$(latest_session_dir || true)"
-  fi
-  [[ -n "$session_dir" && -d "$session_dir" ]] || { log "No sessions yet."; return 0; }
-
-  meta="$session_dir/meta.env"
-  backend="$session_dir/backend.pid"
-  started_at="$(get_meta "$meta" STARTED_AT || true)"
-  stopped_at="$(get_meta "$meta" STOPPED_AT || true)"
-  recording_file="$(get_meta "$meta" RECORDING_FILE || true)"
-  uploaded="$(get_meta "$meta" UPLOADED || true)"
-  active="No"
-
-  if [[ -f "$backend" ]] && pid_alive "$(cat "$backend")"; then
-    active="Yes"
-  fi
-
-  elapsed="n/a"
-  if [[ "$active" == "Yes" && -n "$started_at" ]]; then
-    local start_epoch now_epoch delta h m s
-    start_epoch="$(date -d "$started_at" +%s 2>/dev/null || true)"
-    if [[ -n "$start_epoch" ]]; then
-      now_epoch="$(date +%s)"
-      delta=$((now_epoch - start_epoch))
-      (( delta < 0 )) && delta=0
-      h=$((delta / 3600))
-      m=$(((delta % 3600) / 60))
-      s=$((delta % 60))
-      elapsed="$(printf '%02d:%02d:%02d' "$h" "$m" "$s")"
-    fi
-  fi
-
-  local recording_file_cam
-  recording_file_cam="$(get_meta "$meta" RECORDING_FILE_CAM || true)"
+  local sessions=() dir
   
-  local actual_recording_file="$recording_file"
-  if [[ -f "$actual_recording_file" && "$actual_recording_file" == *.real_path ]]; then
-    actual_recording_file="$(cat "$actual_recording_file")"
-  fi
+  while IFS= read -r dir; do
+    [[ -n "$dir" && -d "$dir" ]] && sessions+=("$dir")
+  done < <(all_sessions_sorted)
 
-  size="n/a"
-  if [[ -f "$actual_recording_file" && -n "$recording_file_cam" && -f "$recording_file_cam" ]]; then
-    size="$(du -ch "$actual_recording_file" "$recording_file_cam" 2>/dev/null | awk 'END{print $1}')"
-  elif [[ -f "$actual_recording_file" ]]; then
-    size="$(du -h "$actual_recording_file" 2>/dev/null | awk '{print $1}')"
-  fi
-  
-  # Format dates for cleaner table output
-  short_start=$(date -d "$started_at" '+%H:%M:%S' 2>/dev/null || echo "n/a")
+  [[ ${#sessions[@]} -gt 0 ]] || { log "No sessions yet."; return 0; }
 
   printf "\n"
-  printf "%-25s | %-6s | %-10s | %-10s | %-8s | %-4s\n" "SESSION" "ACTIVE" "START TIME" "ELAPSED" "SIZE" "UP?"
-  printf "%-25s | %-6s | %-10s | %-10s | %-8s | %-4s\n" "-------------------------" "------" "----------" "----------" "--------" "----"
-  printf "%-25s | %-6s | %-10s | %-10s | %-8s | %-4s\n" "$(basename "$session_dir")" "$active" "$short_start" "$elapsed" "$size" "${uploaded:-0}"
+  printf "%-45s | %-6s | %-10s | %-10s | %-8s | %-4s\n" "SESSION" "ACTIVE" "START TIME" "ELAPSED" "SIZE" "UP?"
+  printf "%-45s | %-6s | %-10s | %-10s | %-8s | %-4s\n" "---------------------------------------------" "------" "----------" "----------" "--------" "----"
+
+  local start_idx=0
+  local keep=15
+  (( ${#sessions[@]} > keep )) && start_idx=$(( ${#sessions[@]} - keep ))
+
+  for ((i=start_idx; i<${#sessions[@]}; i++)); do
+    local session_dir="${sessions[$i]}"
+    local active meta backend started_at stopped_at recording_file size uploaded elapsed short_start short_stop
+
+    meta="$session_dir/meta.env"
+    backend="$session_dir/backend.pid"
+    started_at="$(get_meta "$meta" STARTED_AT || true)"
+    stopped_at="$(get_meta "$meta" STOPPED_AT || true)"
+    recording_file="$(get_meta "$meta" RECORDING_FILE || true)"
+    uploaded="$(get_meta "$meta" UPLOADED || true)"
+    active="No"
+
+    if [[ -f "$backend" ]] && pid_alive "$(cat "$backend")"; then
+      active="Yes"
+    fi
+
+    elapsed="n/a"
+    if [[ "$active" == "Yes" && -n "$started_at" ]]; then
+      local start_epoch now_epoch delta h m s
+      start_epoch="$(date -d "$started_at" +%s 2>/dev/null || true)"
+      if [[ -n "$start_epoch" ]]; then
+        now_epoch="$(date +%s)"
+        delta=$((now_epoch - start_epoch))
+        (( delta < 0 )) && delta=0
+        h=$((delta / 3600))
+        m=$(((delta % 3600) / 60))
+        s=$((delta % 60))
+        elapsed="$(printf '%02d:%02d:%02d' "$h" "$m" "$s")"
+      fi
+    fi
+
+    local recording_file_cam
+    recording_file_cam="$(get_meta "$meta" RECORDING_FILE_CAM || true)"
+    
+    local actual_recording_file="$recording_file"
+    if [[ -f "$actual_recording_file" && "$actual_recording_file" == *.real_path ]]; then
+      actual_recording_file="$(cat "$actual_recording_file")"
+    fi
+
+    size="n/a"
+    if [[ -f "$actual_recording_file" && -n "$recording_file_cam" && -f "$recording_file_cam" ]]; then
+      size="$(du -ch "$actual_recording_file" "$recording_file_cam" 2>/dev/null | awk 'END{print $1}')"
+    elif [[ -f "$actual_recording_file" ]]; then
+      size="$(du -h "$actual_recording_file" 2>/dev/null | awk '{print $1}')"
+    fi
+    
+    short_start=$(date -d "$started_at" '+%H:%M:%S' 2>/dev/null || echo "n/a")
+    
+    local name="$(basename "$session_dir")"
+    if (( ${#name} > 42 )); then
+      name="${name:0:39}..."
+    fi
+
+    printf "%-45s | %-6s | %-10s | %-10s | %-8s | %-4s\n" "$name" "$active" "$short_start" "$elapsed" "$size" "${uploaded:-0}"
+  done
   printf "\n"
 }
 
