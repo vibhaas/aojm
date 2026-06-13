@@ -304,7 +304,8 @@ EOF
     )
 
     if [[ -n "$cam" ]]; then
-      ffmpeg_cmd+=(-thread_queue_size 512 -f v4l2 -video_size 640x480 -framerate "$CAMERA_FPS" -i "$cam" -pix_fmt yuv420p)
+      ffmpeg_cmd+=(-thread_queue_size 512 -f v4l2 -framerate "$CAMERA_FPS" -i "$cam")
+      ffmpeg_cmd+=(-vf "scale=640:-1")
     else
       # Dummy video input if no webcam
       ffmpeg_cmd+=(-f lavfi -i color=c=black:s=${CAMERA_WIDTH}x240:r=$CAMERA_FPS)
@@ -324,7 +325,7 @@ EOF
       ffmpeg_cmd+=(-c:v libx264 -preset veryfast -crf 28)
     fi
 
-    ffmpeg_cmd+=("$cam_file")
+    ffmpeg_cmd+=(-pix_fmt yuv420p "$cam_file")
 
     nohup timeout --signal=INT --kill-after=20s "$MAX_DURATION_SECONDS" "${ffmpeg_cmd[@]}" >> "$ffmpeg_log" 2>&1 &
     local ff_pid=$!
