@@ -374,9 +374,13 @@ cmd_start() {
   fi
 
   local session_id session_dir recording_file ffmpeg_log activity_log meta_file browser_log
-  session_id="$(date +%Y%m%d_%H%M%S)_${HOSTNAME%%.*}"
+  local contest_name
+  contest_name="$(echo "$url" | sed 's|https*://||' | sed -E 's/[^a-zA-Z0-9]+/-/g' | sed 's/^-//;s/-$//')"
+  session_id="$(date +%Y%m%d_%H%M%S)_${contest_name}"
   session_dir="$SESSION_DIR_BASE/$session_id"
   mkdir -p "$session_dir"
+  
+  echo "Computer Name: ${HOSTNAME:-unknown}" > "$session_dir/info.txt"
 
   recording_file="$session_dir/recording.mkv"
   ffmpeg_log="$session_dir/ffmpeg.log"
