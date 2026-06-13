@@ -551,7 +551,7 @@ cmd_settings() {
 upload_one() {
   local session_dir="$1"
   [[ -d "$session_dir" ]] || return 0
-  [[ -f "$session_dir/recording.mkv" ]] || return 0
+  [[ -f "$session_dir/meta.env" ]] || return 0
   [[ -n "${RCLONE_REMOTE:-}" ]] || die "No rclone remote configured. Run 'rclone config' then '$APP init'."
 
   local name dest
