@@ -12,7 +12,20 @@ CURRENT_SESSION_FILE="$STATE_DIR/current_session"
 
 mkdir -p "$CONF_DIR" "$STATE_DIR" "$DATA_DIR" "$SESSION_DIR_BASE" "$TRASH_DIR"
 
+migrate_data() {
+  local old_data="${XDG_DATA_HOME:-$HOME/.local/share}/aojm"
+  if [[ -d "$old_data/sessions" ]]; then
+    for s in "$old_data/sessions"/*; do
+      if [[ -d "$s" ]]; then
+        mv "$s" "$SESSION_DIR_BASE/" 2>/dev/null || true
+      fi
+    done
+    rm -rf "$old_data" 2>/dev/null || true
+  fi
+}
+
 ensure_config() {
+  migrate_data
   if [[ ! -f "$CONFIG_FILE" ]]; then
     cat > "$CONFIG_FILE" <<'EOF'
 OUTPUT_WIDTH=1920
@@ -380,7 +393,7 @@ EOF
 cmd_start() {
   load_config
   local url="${1:-}"
-  [[ -n "$url" ]] || die "usage: $APP start <contest_url>"
+  [[ -n "$url" ]] || die "usage: $APP start <contest_name_or_url>"
   mkdir -p "$SESSION_DIR_BASE" "$TRASH_DIR"
 
   if [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
@@ -424,10 +437,6 @@ UPLOADED=0
 EOF
 
   printf '%s\n' "$session_dir" > "$CURRENT_SESSION_FILE"
-
-  log "Opening browser..."
-  xdg-open "$url" >> "$browser_log" 2>&1 &
-  sleep "$OPEN_BROWSER_DELAY_SECONDS"
 
   log "Starting recorder..."
   start_recorder "$recording_file" "$ffmpeg_log" "$session_dir/backend.pid" "$session_dir"
@@ -746,6 +755,15 @@ cmd_show() {
 }
 
 cmd_update() {
+  local cur backend
+  cur="$(active_session_dir || true)"
+  if [[ -n "$cur" && -f "$cur/backend.pid" ]]; then
+    backend="$(cat "$cur/backend.pid")"
+    if pid_alive "$backend"; then
+      die "A recording is currently active. Please stop the recording before updating."
+    fi
+  fi
+
   log "Checking for updates..."
   local tmp_file
   tmp_file="$(mktemp)"
@@ -789,7 +807,7 @@ Usage: $APP <command> [options]
 
 Commands:
   init       Initialize configuration, detect hardware, and setup cloud storage.
-  start      <contest_url> Open the URL and start recording (screen, webcam, audio).
+  start      <contest_name_or_url> Start recording (screen, webcam, audio).
   stop       Stop the current active recording session.
   status     View the status and size of active and recent sessions.
   preview    Preview the current or latest video recording stream.

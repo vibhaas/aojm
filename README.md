@@ -12,7 +12,7 @@ sudo install -m 755 aojm.sh /usr/local/bin/aojm
 ## Usage
 
 - `aojm init`: Initialize configuration, detect hardware, and get guidance for setting up Google Drive uploads.
-- `aojm start <contest_url>`: Open the contest URL and start recording (screen, webcam, audio, window logs).
+- `aojm start <contest_name_or_url>`: Start recording (screen, webcam, audio, window logs).
 - `aojm stop`: Stop the current recording session.
 - `aojm status`: View the status and combined sizes of active and recent sessions.
 - `aojm preview`: Preview the current or latest video recording (automatically manages Wayland streams).
