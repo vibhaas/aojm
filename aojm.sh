@@ -844,7 +844,7 @@ main() {
     status) cmd_status "$@" ;;
     preview) cmd_preview "$@" ;;
     upload) cmd_upload "${1:-recent}" ;;
-    clean) cmd_clean "${1:-$KEEP_LAST}" "${2:-no}" ;;
+    clean) cmd_clean "${1:-}" "${2:-no}" ;;
     settings) cmd_settings "$@" ;;
     show) cmd_show ;;
     update) cmd_update ;;
