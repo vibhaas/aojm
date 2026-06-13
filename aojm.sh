@@ -260,20 +260,45 @@ start_recorder() {
   active_encoder=$(probe_encoder)
 
   if [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
-    local screen_file="$session_dir/screen.mkv"
+    local screen_base="$session_dir/screen"
     local cam_file="$session_dir/cam.mkv"
 
-    printf '\n=======================================================\n'
-    log "ACTION REQUIRED: A screen sharing dialog will now appear."
-    log "Please select 'Share entire screen' or 'Entire Screen' to proceed."
-    printf '=======================================================\n\n'
+    log "Using GNOME Native Screen Recorder for Wayland..."
 
-    # GStreamer command for Wayland Screen via Portal
-    local gst_cmd=(
-      gst-launch-1.0 -e pipewiresrc ! videoconvert ! x264enc tune=zerolatency ! matroskamux ! filesink location="$screen_file"
-    )
+    local py_script="$session_dir/gnome_record.py"
+    cat > "$py_script" << 'EOF'
+import dbus
+import time
+import signal
+import sys
 
-    nohup timeout --signal=INT --kill-after=20s "$MAX_DURATION_SECONDS" "${gst_cmd[@]}" >> "$ffmpeg_log" 2>&1 &
+try:
+    bus = dbus.SessionBus()
+    obj = bus.get_object("org.gnome.Shell.Screencast", "/org/gnome/Shell/Screencast")
+    iface = dbus.Interface(obj, "org.gnome.Shell.Screencast")
+    success, actual_filename = iface.Screencast(sys.argv[1], {})
+    
+    if not success:
+        sys.exit(1)
+        
+    with open(sys.argv[1] + ".real_path", "w") as f:
+        f.write(actual_filename)
+        
+    def signal_handler(sig, frame):
+        iface.StopScreencast()
+        sys.exit(0)
+        
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    while True:
+        time.sleep(1)
+except Exception as e:
+    print(e)
+    sys.exit(1)
+EOF
+
+    nohup timeout --signal=INT --kill-after=20s "$MAX_DURATION_SECONDS" python3 "$py_script" "$screen_base" >> "$ffmpeg_log" 2>&1 &
     local gst_pid=$!
 
     # FFmpeg command for Webcam + Audio
@@ -282,7 +307,7 @@ start_recorder() {
     )
 
     if [[ -n "$cam" ]]; then
-      ffmpeg_cmd+=(-thread_queue_size 512 -f v4l2 -framerate "$CAMERA_FPS" -i "$cam")
+      ffmpeg_cmd+=(-thread_queue_size 512 -f v4l2 -video_size 640x480 -framerate "$CAMERA_FPS" -i "$cam" -pix_fmt yuv420p)
     else
       # Dummy video input if no webcam
       ffmpeg_cmd+=(-f lavfi -i color=c=black:s=${CAMERA_WIDTH}x240:r=$CAMERA_FPS)
@@ -310,7 +335,7 @@ start_recorder() {
     echo "$gst_pid" > "$backend_file"
     echo "$ff_pid" > "$session_dir/backend_ff.pid"
 
-    set_meta "$session_dir/meta.env" RECORDING_FILE "$screen_file"
+    set_meta "$session_dir/meta.env" RECORDING_FILE "$screen_base.real_path"
     set_meta "$session_dir/meta.env" RECORDING_FILE_CAM "$cam_file"
 
     return 0
@@ -485,11 +510,17 @@ cmd_status() {
 
   local recording_file_cam
   recording_file_cam="$(get_meta "$meta" RECORDING_FILE_CAM || true)"
+  
+  local actual_recording_file="$recording_file"
+  if [[ -f "$actual_recording_file" && "$actual_recording_file" == *.real_path ]]; then
+    actual_recording_file="$(cat "$actual_recording_file")"
+  fi
+
   size="n/a"
-  if [[ -f "$recording_file" && -n "$recording_file_cam" && -f "$recording_file_cam" ]]; then
-    size="$(du -ch "$recording_file" "$recording_file_cam" 2>/dev/null | awk 'END{print $1}')"
-  elif [[ -f "$recording_file" ]]; then
-    size="$(du -h "$recording_file" 2>/dev/null | awk '{print $1}')"
+  if [[ -f "$actual_recording_file" && -n "$recording_file_cam" && -f "$recording_file_cam" ]]; then
+    size="$(du -ch "$actual_recording_file" "$recording_file_cam" 2>/dev/null | awk 'END{print $1}')"
+  elif [[ -f "$actual_recording_file" ]]; then
+    size="$(du -h "$actual_recording_file" 2>/dev/null | awk '{print $1}')"
   fi
   
   # Format dates for cleaner table output
@@ -513,6 +544,9 @@ cmd_preview() {
   file="$(get_meta "$session_dir/meta.env" RECORDING_FILE || true)"
   if [[ -z "$file" || ! -f "$file" ]]; then
     file="$session_dir/recording.mkv"
+  fi
+  if [[ -f "$file" && "$file" == *.real_path ]]; then
+    file="$(cat "$file")"
   fi
   [[ -f "$file" ]] || die "Recording file not found: $file"
 
