@@ -19,6 +19,7 @@ sudo install -m 755 aojm.sh /usr/local/bin/aojm
 - `aojm upload [recent|all]`: Safely upload completed recordings to Google Drive (verifies available space first).
 - `aojm clean [keep_count] [--yes] | --empty-trash`: Move old sessions to trash or empty the trash.
 - `aojm settings [list | set <key> <value>]`: View or modify configuration settings.
+- `aojm show`: Open the local recordings folder (`~/.aojm/sessions`) in your file manager.
 - `aojm update`: Check GitHub for updates and safely patch the local installation.
 - `aojm help`: Display the help menu with detailed command descriptions.
 

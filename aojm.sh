@@ -4,7 +4,7 @@ set -euo pipefail
 APP="aojm"
 CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/aojm"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/aojm"
-DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/aojm"
+DATA_DIR="$HOME/.aojm"
 SESSION_DIR_BASE="$DATA_DIR/sessions"
 TRASH_DIR="$DATA_DIR/trash"
 CONFIG_FILE="$CONF_DIR/config.env"
@@ -15,7 +15,6 @@ mkdir -p "$CONF_DIR" "$STATE_DIR" "$DATA_DIR" "$SESSION_DIR_BASE" "$TRASH_DIR"
 ensure_config() {
   if [[ ! -f "$CONFIG_FILE" ]]; then
     cat > "$CONFIG_FILE" <<'EOF'
-RECORDINGS_DIR="$HOME/aojm"
 OUTPUT_WIDTH=1920
 OUTPUT_HEIGHT=1080
 CAMERA_WIDTH=320
@@ -173,8 +172,6 @@ cmd_init() {
   load_config
   check_init_deps
 
-  mkdir -p "$RECORDINGS_DIR"
-
   if find_camera >/dev/null 2>&1; then
     log "Webcam detected: $(find_camera)"
   else
@@ -206,7 +203,7 @@ cmd_init() {
     fi
   fi
 
-  log "Init complete. Recordings directory: $RECORDINGS_DIR"
+  log "Init complete. Recordings directory: $SESSION_DIR_BASE"
 }
 
 start_logger() {
@@ -380,7 +377,7 @@ cmd_start() {
   load_config
   local url="${1:-}"
   [[ -n "$url" ]] || die "usage: $APP start <contest_url>"
-  mkdir -p "$RECORDINGS_DIR" "$SESSION_DIR_BASE" "$TRASH_DIR"
+  mkdir -p "$SESSION_DIR_BASE" "$TRASH_DIR"
 
   if [[ "${XDG_SESSION_TYPE:-}" == "wayland" ]]; then
     need gst-launch-1.0
@@ -702,6 +699,16 @@ cmd_clean() {
   log "Clean complete. Use '$APP clean --empty-trash' to permanently delete."
 }
 
+cmd_show() {
+  log "Opening recordings folder: $SESSION_DIR_BASE"
+  mkdir -p "$SESSION_DIR_BASE"
+  if have xdg-open; then
+    xdg-open "$SESSION_DIR_BASE" >/dev/null 2>&1 &
+  else
+    log "Error: xdg-open not installed. Cannot open folder."
+  fi
+}
+
 cmd_update() {
   log "Checking for updates..."
   local tmp_file
@@ -753,6 +760,7 @@ Commands:
   upload     [recent|all] Safely upload completed recordings to Google Drive/cloud.
   clean      [keep_count] [--yes] | --empty-trash Move old sessions to trash or permanently empty.
   settings   [list | set <key> <value>] View or modify configuration settings.
+  show       Open the local recordings folder in your file manager.
   update     Check GitHub for updates and automatically patch the local installation.
   help       Show this help message.
 EOF
@@ -770,6 +778,7 @@ main() {
     upload) cmd_upload "${1:-recent}" ;;
     clean) cmd_clean "${1:-$KEEP_LAST}" "${2:-no}" ;;
     settings) cmd_settings "$@" ;;
+    show) cmd_show ;;
     update) cmd_update ;;
     ""|-h|--help|help) usage ;;
     *) die "unknown command: $cmd" ;;
