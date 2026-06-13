@@ -673,6 +673,15 @@ upload_one() {
   set_meta "$session_dir/meta.env" UPLOADED 1
   set_meta "$session_dir/meta.env" UPLOADED_AT "$(date -Is)"
   log "Successfully uploaded $name."
+
+  local public_link=""
+  public_link="$(rclone link "$dest" 2>/dev/null || true)"
+  if [[ -n "$public_link" ]]; then
+    log "Public Link: $public_link"
+    log "Please share this link! (Note: 'rclone link' attempts to make it public automatically. If it doesn't work, manually make the 'aojm/$name' folder public in Google Drive)."
+  else
+    log "Please log into Google Drive, make the 'aojm/$name' folder public, and share the link!"
+  fi
 }
 
 cmd_upload() {
