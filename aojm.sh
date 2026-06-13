@@ -725,6 +725,7 @@ cmd_clean() {
 
   local keep="${1:-$KEEP_LAST}"
   local yes="${2:-no}"
+  local force="${3:-no}"
   local sessions=() dir current uploaded i delete_from
   current="$(active_session_dir || true)"
 
@@ -734,8 +735,10 @@ cmd_clean() {
     if [[ -f "$dir/backend.pid" ]] && pid_alive "$(cat "$dir/backend.pid")"; then
       continue
     fi
-    uploaded="$(get_meta "$dir/meta.env" UPLOADED || true)"
-    [[ "$uploaded" == "1" ]] || continue
+    if [[ "$force" != "--force" ]]; then
+      uploaded="$(get_meta "$dir/meta.env" UPLOADED || true)"
+      [[ "$uploaded" == "1" ]] || continue
+    fi
     sessions+=("$dir")
   done < <(all_sessions_sorted)
 
@@ -826,8 +829,9 @@ Commands:
   status     View the status and size of active and recent sessions.
   preview    Preview the current or latest video recording stream.
   upload     [recent|all] Safely upload completed recordings to Google Drive/cloud.
-  clean      [keep_count] [--yes] | --empty-trash Move old sessions to trash or permanently empty.
-  settings   [list | set <key> <value>] View or modify configuration settings.
+  clean        [keep_count] [--yes] | --empty-trash Move old uploaded sessions to trash.
+  force-delete [keep_count] [--yes] Bypass safety checks and delete un-uploaded sessions too.
+  settings     [list | set <key> <value>] View or modify configuration settings.
   show       Open the local recordings folder in your file manager.
   update     Check GitHub for updates and automatically patch the local installation.
   help       Show this help message.
@@ -844,7 +848,8 @@ main() {
     status) cmd_status "$@" ;;
     preview) cmd_preview "$@" ;;
     upload) cmd_upload "${1:-recent}" ;;
-    clean) cmd_clean "${1:-}" "${2:-no}" ;;
+    clean) cmd_clean "${1:-}" "${2:-no}" "no" ;;
+    force-delete) cmd_clean "${1:-}" "${2:-no}" "--force" ;;
     settings) cmd_settings "$@" ;;
     show) cmd_show ;;
     update) cmd_update ;;

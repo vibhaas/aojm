@@ -17,7 +17,8 @@ sudo install -m 755 aojm.sh /usr/local/bin/aojm
 - `aojm status`: View the status and combined sizes of active and recent sessions.
 - `aojm preview`: Preview the current or latest video recording (automatically manages Wayland streams).
 - `aojm upload [recent|all]`: Safely upload completed recordings to Google Drive (verifies available space first).
-- `aojm clean [keep_count] [--yes] | --empty-trash`: Move old sessions to trash or empty the trash.
+- `aojm clean [keep_count] [--yes] | --empty-trash`: Move old uploaded sessions to trash or empty the trash.
+- `aojm force-delete [keep_count] [--yes]`: Like clean, but actively deletes un-uploaded sessions as well.
 - `aojm settings [list | set <key> <value>]`: View or modify configuration settings.
 - `aojm show`: Open the local recordings folder (`~/.aojm/sessions`) in your file manager.
 - `aojm update`: Check GitHub for updates and safely patch the local installation.
