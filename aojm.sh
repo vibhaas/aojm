@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+## Version V1.1
+
 set -euo pipefail
 
 APP="aojm"

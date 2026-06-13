@@ -11,11 +11,12 @@ sudo install -m 755 aojm.sh /usr/local/bin/aojm
 
 ## Commands
 
-- `aojm init`: Initialize configuration and detect hardware (webcam/audio).
-- `aojm start <name_or_url>`: Start recording in the background.
+- `aojm init`: Initializes configuration and detect hardware (webcam/audio).
+- `aojm help`: Shows commands.
+- `aojm start <name_or_url>`: Start recording the screen and webcam in the background.
 - `aojm stop`: Finalize and safely stop the current recording session.
 - `aojm status`: Display a table of all recent and active sessions.
-- `aojm preview`: Preview the current or latest video recording.
+- `aojm preview`: Preview the current or latest video recording. (Warning: doesn't work on Wayland)
 - `aojm upload [recent|all]`: Upload recordings to Google Drive and generate a public sharing link.
 - `aojm clean [count]`: Safely trash old, successfully uploaded sessions.
 - `aojm force-delete [count]`: Trash un-uploaded sessions, bypassing safety locks.
@@ -26,12 +27,13 @@ sudo install -m 755 aojm.sh /usr/local/bin/aojm
 ## Under the Hood (Features)
 
 - **Native Wayland & X11 Capture**: 
-  - On **Wayland**, `aojm` bypasses restrictive XDG portal bugs by natively bridging with the `org.gnome.Shell.Screencast` DBus interface. It securely captures the screen to a raw MP4 and automatically scales it down post-recording using `ffmpeg` to save disk space.
-  - On **X11**, it leverages `x11grab` for hardware-accelerated capture and supports live active-window-title logging via `xdotool`.
+  - On **Wayland**, `aojm` bypasses restrictive XDG portal bugs by natively bridging with the `org.gnome.Shell.Screencast` DBus interface. It securely captures the screen to a raw MP4 and automatically downscales it post-recording using `ffmpeg` to save disk space.
+  - On **X11**, it leverages `x11grab` for hardware-accelerated capture and supports live active-window-title logging via `xdotool`. (Note: Not yet tested!)
 - **Smart Rclone Cloud Sync**:
-  - Validates remote Google Drive storage space before attempting an upload.
-  - Automatically invokes `rclone link` post-upload to generate and print a public sharing URL directly in the terminal.
+  - Checks if there is enough Google Drive storage space before attempting an upload.
+  - Uses `rclone link` to generate and print a public sharing URL.
 - **Fail-Safe Data Retention**:
-  - The `clean` command strictly prevents the deletion of any recording that has not yet been safely verified as `UPLOADED=1`. Old data directories are seamlessly migrated during updates.
-- **Self-Patching Updates**: 
-  - The `update` command queries the raw GitHub repository (bypassing CDN edge-caches with randomized timestamp strings) and safely patches the binary in `/usr/local/bin`. It explicitly blocks updates if a recording is currently active to prevent file corruption.
+  - The `clean` command strictly prevents the deletion of any recording that has not yet been verified as `UPLOADED=1`.
+  - There is a `force-delete` command, otherwise.
+- **Updates**: 
+  - The `update` command queries the GitHub repo and patches the binary in `/usr/local/bin`.
